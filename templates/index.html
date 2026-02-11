@@ -1,0 +1,388 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Digital Twin MVP</title>
+  <link rel="icon" href="/static/favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b bg-white">
+      <div class="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
+        <div>
+          <h1 class="text-lg font-semibold">Digital Twin MVP</h1>
+          <div class="text-xs text-slate-500 mt-1">
+            User: <span class="font-medium text-slate-700">{{ user_id }}</span>
+            <span class="mx-2">•</span>
+            Chat: <span id="chatId" class="font-mono text-slate-700">{{ chat_id }}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+            onclick="newChat()"
+            title="Start a fresh chat session"
+          >
+            New chat
+          </button>
+          <a
+            href="/memory"
+            class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+            >
+            View memory
+        </a>
+
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="mx-auto max-w-5xl px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Left -->
+      <section class="lg:col-span-1">
+        <!-- Profile Memory -->
+        <div class="rounded-xl border bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold">Profile memory</h2>
+          <p class="mt-1 text-xs text-slate-500">
+            Add stable facts like bio, goals, preferences.
+          </p>
+
+          <div class="mt-4 space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600">Category</label>
+              <select
+                id="profileCategory"
+                class="mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="Bio">Bio</option>
+                <option value="Preferences">Preferences</option>
+                <option value="Goals">Goals</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600">Text</label>
+              <textarea
+                id="profileText"
+                rows="5"
+                class="mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
+                placeholder="Example: I prefer structured, technical explanations and fast iteration."
+              ></textarea>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                class="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800"
+                onclick="saveProfile()"
+              >
+                Save memory
+              </button>
+
+              <span id="profileStatus" class="text-xs text-slate-500"></span>
+            </div>
+
+            <div class="rounded-lg bg-slate-50 border p-3">
+              <div class="text-xs font-medium text-slate-600">User Tip</div>
+              <div class="mt-1 text-xs text-slate-500">
+                Add 3–5 profile memories, then chat 5–10 messages, then ask:
+                <span class="font-medium text-slate-700">“What patterns do you notice?”</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upload Context -->
+        <div class="mt-4 rounded-xl border bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold">Upload context</h2>
+          <p class="mt-1 text-xs text-slate-500">
+            PDFs are parsed into chunks and indexed in Qdrant. Images are stored with a caption (no OCR).
+          </p>
+
+          <div class="mt-4 space-y-3">
+            <input
+              id="uploadFile"
+              type="file"
+              class="block w-full text-sm text-slate-600
+                     file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900
+                     file:px-3 file:py-2 file:text-sm file:text-white
+                     hover:file:bg-slate-800"
+            />
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600">Caption (recommended for images)</label>
+              <textarea
+                id="uploadCaption"
+                rows="3"
+                class="mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
+                placeholder="What is this document/image and how should it be used as context?"
+              ></textarea>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                class="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800"
+                onclick="uploadContext()"
+              >
+                Upload & index
+              </button>
+
+              <span id="uploadStatus" class="text-xs text-slate-500"></span>
+            </div>
+
+            <div class="rounded-lg bg-slate-50 border p-3">
+              <div class="text-xs font-medium text-slate-600">Example</div>
+              <div class="mt-1 text-xs text-slate-500">
+                Upload a PDF, then ask:
+                <span class="font-medium text-slate-700">“Summarize the uploaded document.”</span>
+                or
+                <span class="font-medium text-slate-700">“What does the document say about &lt;topic&gt;?”</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debug card -->
+        <div class="mt-4 rounded-xl border bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold">Debug</h2>
+          <div class="mt-2 text-xs text-slate-500">
+            Context used (counts):
+          </div>
+          <pre id="ctxUsed" class="mt-2 text-xs bg-slate-50 border rounded-lg p-3 overflow-x-auto">(none yet)</pre>
+          <div id="status" class="mt-2 text-xs text-slate-500"></div>
+        </div>
+      </section>
+
+      <!-- Right: Chat -->
+      <section class="lg:col-span-2">
+        <div class="rounded-xl border bg-white shadow-sm flex flex-col h-[70vh]">
+          <!-- Chat log -->
+          <div id="chat" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div class="text-xs text-slate-400">
+              Tip: Ask natural questions. Retrieval is semantic, not keyword-based.
+            </div>
+          </div>
+
+          <!-- Composer -->
+          <div class="border-t p-3">
+            <div class="flex items-end gap-2">
+              <textarea
+                id="message"
+                rows="2"
+                class="flex-1 resize-none rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
+                placeholder="Type a message…"
+              ></textarea>
+
+              <button
+                class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
+                onclick="sendMessage()"
+                id="sendBtn"
+              >
+                Send
+              </button>
+            </div>
+
+            <div class="mt-2 text-xs text-slate-500">
+              Press <span class="font-mono">Ctrl</span> + <span class="font-mono">Enter</span> to send.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mx-auto max-w-5xl px-4 pb-8 text-xs text-slate-400">
+      Local-first: Ollama on <span class="font-mono">127.0.0.1:11434</span>, Qdrant on <span class="font-mono">127.0.0.1:6333</span>, FastAPI on <span class="font-mono">127.0.0.1:8000</span>.
+    </footer>
+  </div>
+
+  <script>
+    function setStatus(text) {
+      document.getElementById("status").textContent = text || "";
+    }
+
+    function appendBubble(role, text) {
+      var chat = document.getElementById("chat");
+
+      var wrap = document.createElement("div");
+      wrap.className = "w-full flex " + (role === "user" ? "justify-end" : "justify-start");
+
+      var bubble = document.createElement("div");
+      bubble.className =
+        "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed border " +
+        (role === "user"
+          ? "bg-slate-900 text-white border-slate-900"
+          : "bg-white text-slate-900 border-slate-200");
+
+      bubble.textContent = text;
+
+      wrap.appendChild(bubble);
+      chat.appendChild(wrap);
+
+      chat.scrollTop = chat.scrollHeight;
+      return bubble;
+    }
+
+    async function newChat() {
+      setStatus("Creating new chat…");
+
+      var resp = await fetch("/api/new_chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+
+      var data = await resp.json();
+
+      document.getElementById("chatId").textContent = data.chat_id;
+      document.getElementById("chat").innerHTML =
+        '<div class="text-xs text-slate-400">Tip: Ask natural questions. Retrieval is semantic, not keyword-based.</div>';
+      document.getElementById("ctxUsed").textContent = "(none yet)";
+
+      setStatus("New chat started.");
+      setTimeout(function () { setStatus(""); }, 800);
+    }
+
+    async function saveProfile() {
+      var cat = document.getElementById("profileCategory").value || "";
+      var txt = document.getElementById("profileText").value || "";
+      var out = document.getElementById("profileStatus");
+
+      out.textContent = "Saving…";
+
+      var resp = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: cat, text: txt })
+      });
+
+      var data = await resp.json();
+
+      if (!resp.ok) {
+        out.textContent = "Error: " + (data.error || "unknown");
+        return;
+      }
+
+      out.textContent = "Saved ✓";
+      document.getElementById("profileText").value = "";
+
+      setTimeout(function () { out.textContent = ""; }, 1200);
+    }
+
+    async function uploadContext() {
+      var fileInput = document.getElementById("uploadFile");
+      var caption = document.getElementById("uploadCaption").value || "";
+      var out = document.getElementById("uploadStatus");
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        out.textContent = "Choose a file first.";
+        return;
+      }
+
+      out.textContent = "Uploading…";
+
+      var form = new FormData();
+      form.append("file", fileInput.files[0]);
+      form.append("caption", caption);
+
+      var resp = await fetch("/api/upload", {
+        method: "POST",
+        body: form
+      });
+
+      var data = await resp.json();
+
+      if (!resp.ok) {
+        out.textContent = "Error: " + (data.error || "unknown");
+        return;
+      }
+
+      out.textContent = "Indexed ✓ (" + (data.indexed_chunks || 0) + " chunks)";
+      fileInput.value = "";
+      document.getElementById("uploadCaption").value = "";
+
+      setTimeout(function () { out.textContent = ""; }, 1500);
+    }
+
+    async function sendMessage() {
+      var msgBox = document.getElementById("message");
+      var msg = (msgBox.value || "").trim();
+      if (msg.length === 0) {
+        return;
+      }
+
+      appendBubble("user", msg);
+      msgBox.value = "";
+
+      var btn = document.getElementById("sendBtn");
+      btn.disabled = true;
+      setStatus("Thinking…");
+
+      var resp = await fetch("/api/ask_stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+
+      if (!resp.ok) {
+        var data = await resp.json();
+        setStatus("Error: " + (data.error || "unknown"));
+        btn.disabled = false;
+        return;
+      }
+
+      var assistantBubble = appendBubble("twin", "");
+      var reader = resp.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = "";
+      var assistantText = "";
+
+      while (true) {
+        var result = await reader.read();
+        if (result.done) {
+          break;
+        }
+        buffer += decoder.decode(result.value, { stream: true });
+        var lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (var i = 0; i < lines.length; i += 1) {
+          var line = lines[i].trim();
+          if (line.length === 0) {
+            continue;
+          }
+          var msgObj = JSON.parse(line);
+          if (msgObj.type === "delta") {
+            assistantText += msgObj.text || "";
+            assistantBubble.textContent = assistantText;
+            document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+          } else if (msgObj.type === "done") {
+            var ctx = msgObj.context_used || {};
+            document.getElementById("ctxUsed").textContent = JSON.stringify(ctx, null, 2);
+            setStatus("");
+            btn.disabled = false;
+          } else if (msgObj.type === "error") {
+            setStatus("Error: " + (msgObj.message || "unknown"));
+            btn.disabled = false;
+          }
+        }
+      }
+
+      if (btn.disabled) {
+        setStatus("");
+        btn.disabled = false;
+      }
+    }
+
+    // Ctrl+Enter to send
+    document.addEventListener("keydown", function (e) {
+      if (e.ctrlKey && e.key === "Enter") {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
